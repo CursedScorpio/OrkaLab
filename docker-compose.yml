@@ -52,6 +52,8 @@ services:
     image: cursedscropio/orkalab-frontend:latest
     container_name: orkalab-frontend
     restart: unless-stopped
+    security_opt:
+      - apparmor:unconfined
     networks:
       - orkalab-network
 
@@ -62,6 +64,8 @@ services:
     image: cursedscropio/orkalab-nginx:latest
     container_name: orkalab-nginx
     restart: unless-stopped
+    security_opt:
+      - apparmor:unconfined
     ports:
       - "80:80"
       - "443:443"
@@ -81,6 +85,8 @@ services:
     image: postgres:15-alpine
     container_name: orkalab-postgres
     restart: unless-stopped
+    security_opt:
+      - apparmor:unconfined
     environment:
       - POSTGRES_USER=orkalab
       - POSTGRES_PASSWORD=${DB_PASSWORD}
@@ -97,6 +103,8 @@ services:
     image: redis:7-alpine
     container_name: orkalab-redis
     restart: unless-stopped
+    security_opt:
+      - apparmor:unconfined
     volumes:
       - redis_data:/data
     networks:
@@ -109,6 +117,8 @@ services:
     image: guacamole/guacd:latest
     container_name: orkalab-guacd
     restart: unless-stopped
+    security_opt:
+      - apparmor:unconfined
     networks:
       - orkalab-network
 
@@ -119,6 +129,8 @@ services:
     image: guacamole/guacamole:latest
     container_name: orkalab-guacamole
     restart: unless-stopped
+    security_opt:
+      - apparmor:unconfined
     environment:
       - GUACD_HOSTNAME=guacd
       - POSTGRES_HOSTNAME=guac-postgres
@@ -139,6 +151,8 @@ services:
     image: postgres:15-alpine
     container_name: orkalab-guac-postgres
     restart: unless-stopped
+    security_opt:
+      - apparmor:unconfined
     environment:
       - POSTGRES_USER=guacamole_user
       - POSTGRES_PASSWORD=${GUAC_DB_PASSWORD}
