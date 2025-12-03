@@ -26,21 +26,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # Redis for caching and session management
-  redis:
-    image: redis:7-alpine
-    container_name: orkalab-redis
-    command: redis-server --requirepass ${REDIS_PASSWORD:-redis123}
-    volumes:
-      - redis_data:/data
-    networks:
-      - orkalab-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis123}", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   # Guacamole Database
   guacdb:
     image: postgres:15-alpine
@@ -112,13 +97,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
       guacamole:
         condition: service_started
     environment:
       DATABASE_URL: postgresql://${DB_USER:-orkalab}:${DB_PASSWORD:-orkalab123}@postgres:5432/${DB_NAME:-orkalab}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
       PROXMOX_HOST: ${PROXMOX_HOST}
       PROXMOX_USER: ${PROXMOX_USER}
       PROXMOX_PASSWORD: ${PROXMOX_PASSWORD}
@@ -203,7 +185,6 @@ networks:
 
 volumes:
   postgres_data:
-  redis_data:
   guac_data:
   guacamole_data:
   guacd_drive:
