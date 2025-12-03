@@ -38,7 +38,7 @@ services:
       - LICENSE_KEY=${LICENSE_KEY:-}
     volumes:
       - backend_uploads:/app/uploads
-      - ./license.lic:/app/license.lic:ro
+      - ./license.lic:/opt/orkalab/license.lic:ro
     depends_on:
       - postgres
       - redis
