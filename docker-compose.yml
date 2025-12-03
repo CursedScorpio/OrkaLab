@@ -1,181 +1,228 @@
-# ═══════════════════════════════════════════════════════════════════════════════
-#  Orkalab Production Docker Compose
-#  DO NOT MODIFY - Generated automatically
-# ═══════════════════════════════════════════════════════════════════════════════
-
 version: '3.8'
 
 services:
-  # ─────────────────────────────────────────────────────────────────────────────
-  #  Backend API (FastAPI)
-  # ─────────────────────────────────────────────────────────────────────────────
-  backend:
-    image: cursedscropio/orkalab-backend:latest
-    container_name: orkalab-backend
-    restart: unless-stopped
-    security_opt:
-      - apparmor:unconfined
-    environment:
-      - DATABASE_URL=postgresql://orkalab:${DB_PASSWORD}@postgres:5432/orkalab
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET}
-      - PROXMOX_HOST=${PROXMOX_HOST}
-      - PROXMOX_USER=${PROXMOX_USER}
-      - PROXMOX_PASSWORD=${PROXMOX_PASSWORD}
-      - PROXMOX_NODE=${PROXMOX_NODE}
-      - PROXMOX_BRIDGE=${PROXMOX_BRIDGE:-vmbr1}
-      - PROXMOX_VERIFY_SSL=${PROXMOX_VERIFY_SSL:-false}
-      - GUACAMOLE_URL=http://guacamole:8080/guacamole
-      - GUACAMOLE_ADMIN_USER=${GUACAMOLE_ADMIN_USER:-guacadmin}
-      - GUACAMOLE_ADMIN_PASSWORD=${GUACAMOLE_ADMIN_PASSWORD:-guacadmin}
-      - VM_LINUX_USERNAME=${VM_LINUX_USERNAME:-root}
-      - VM_LINUX_PASSWORD=${VM_LINUX_PASSWORD}
-      - VM_WINDOWS_USERNAME=${VM_WINDOWS_USERNAME:-Administrator}
-      - VM_WINDOWS_PASSWORD=${VM_WINDOWS_PASSWORD}
-      - DHCP_START_IP=${DHCP_START_IP:-192.168.2.100}
-      - DHCP_SUBNET_MASK=${DHCP_SUBNET_MASK:-255.255.255.0}
-      - SERVER_HOST=${SERVER_HOST:-localhost}
-      - LICENSE_KEY=${LICENSE_KEY:-}
-    volumes:
-      - backend_uploads:/app/uploads
-      - ./license.lic:/opt/orkalab/license.lic:ro
-      - /var/lib/dhcp:/var/lib/dhcp:ro
-    depends_on:
-      - postgres
-      - redis
-    networks:
-      - orkalab-network
-
-  # ─────────────────────────────────────────────────────────────────────────────
-  #  Frontend (React + Nginx)
-  # ─────────────────────────────────────────────────────────────────────────────
-  frontend:
-    image: cursedscropio/orkalab-frontend:latest
-    container_name: orkalab-frontend
-    restart: unless-stopped
-    security_opt:
-      - apparmor:unconfined
-    networks:
-      - orkalab-network
-
-  # ─────────────────────────────────────────────────────────────────────────────
-  #  Nginx Reverse Proxy
-  # ─────────────────────────────────────────────────────────────────────────────
-  nginx:
-    image: cursedscropio/orkalab-nginx:latest
-    container_name: orkalab-nginx
-    restart: unless-stopped
-    security_opt:
-      - apparmor:unconfined
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./ssl:/etc/nginx/ssl:ro
-    depends_on:
-      - backend
-      - frontend
-      - guacamole
-    networks:
-      - orkalab-network
-
-  # ─────────────────────────────────────────────────────────────────────────────
-  #  PostgreSQL Database
-  # ─────────────────────────────────────────────────────────────────────────────
+  # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
-    container_name: orkalab-postgres
-    restart: unless-stopped
-    security_opt:
-      - apparmor:unconfined
+    container_name: orkalab-db
+    privileged: true
     environment:
-      - POSTGRES_USER=orkalab
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-      - POSTGRES_DB=orkalab
+      POSTGRES_DB: ${DB_NAME:-orkalab}
+      POSTGRES_USER: ${DB_USER:-orkalab}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-orkalab123}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - orkalab-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-orkalab}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # ─────────────────────────────────────────────────────────────────────────────
-  #  Redis Cache
-  # ─────────────────────────────────────────────────────────────────────────────
+  # Redis for caching and session management
   redis:
     image: redis:7-alpine
     container_name: orkalab-redis
-    restart: unless-stopped
-    security_opt:
-      - apparmor:unconfined
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redis123}
     volumes:
       - redis_data:/data
     networks:
       - orkalab-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # ─────────────────────────────────────────────────────────────────────────────
-  #  Guacamole Daemon
-  # ─────────────────────────────────────────────────────────────────────────────
-  guacd:
-    image: guacamole/guacd:latest
-    container_name: orkalab-guacd
-    restart: unless-stopped
-    security_opt:
-      - apparmor:unconfined
+  # Guacamole Database
+  guacdb:
+    image: postgres:15-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-orkalab}-guacdb
+    privileged: true
+    environment:
+      POSTGRES_DB: guacamole_db
+      POSTGRES_USER: guacamole_user
+      POSTGRES_PASSWORD: ${GUAC_DB_PASSWORD:-guacpass123}
+    volumes:
+      - guac_data:/var/lib/postgresql/data
+      - ./guacamole/initdb.sql:/docker-entrypoint-initdb.d/initdb.sql
     networks:
       - orkalab-network
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U guacamole_user -d guacamole_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # ─────────────────────────────────────────────────────────────────────────────
-  #  Guacamole Web Interface
-  # ─────────────────────────────────────────────────────────────────────────────
-  guacamole:
-    image: guacamole/guacamole:latest
-    container_name: orkalab-guacamole
+  # Guacamole Server (guacd)
+  guacd:
+    image: guacamole/guacd:1.5.3
+    container_name: guacd
+    privileged: true
+    networks:
+      - orkalab-network
     restart: unless-stopped
-    security_opt:
-      - apparmor:unconfined
+    volumes:
+      - guacd_drive:/drive
+      - guacd_record:/record
+      - guacd_home:/home/guacd
+    environment:
+      - GUACD_LOG_LEVEL=debug
+      - NO_PROXY=127.0.0.1,localhost,192.168.0.0/16,10.0.0.0/8
+      - no_proxy=127.0.0.1,localhost,192.168.0.0/16,10.0.0.0/8
+
+  # Guacamole Client
+  guacamole:
+    image: guacamole/guacamole:1.5.3
+    container_name: guacamole
+    privileged: true
+    depends_on:
+      guacd:
+        condition: service_started
+      guacdb:
+        condition: service_healthy
     environment:
       GUACD_HOSTNAME: guacd
-      POSTGRESQL_HOSTNAME: guac-postgres
-      POSTGRESQL_PORT: 5432
-      POSTGRESQL_DATABASE: guacamole_db
-      POSTGRESQL_USER: guacamole_user
-      POSTGRESQL_PASSWORD: ${GUAC_DB_PASSWORD}
-    depends_on:
-      - guacd
-      - guac-postgres
-    networks:
-      - orkalab-network
-
-  # ─────────────────────────────────────────────────────────────────────────────
-  #  Guacamole PostgreSQL Database
-  # ─────────────────────────────────────────────────────────────────────────────
-  guac-postgres:
-    image: postgres:15-alpine
-    container_name: orkalab-guac-postgres
-    restart: unless-stopped
-    security_opt:
-      - apparmor:unconfined
-    environment:
-      - POSTGRES_USER=guacamole_user
-      - POSTGRES_PASSWORD=${GUAC_DB_PASSWORD}
-      - POSTGRES_DB=guacamole_db
+      GUACD_PORT: 4822
+      POSTGRES_HOSTNAME: guacdb
+      POSTGRES_PORT: 5432
+      POSTGRES_DATABASE: guacamole_db
+      POSTGRES_USER: guacamole_user
+      POSTGRES_PASSWORD: ${GUAC_DB_PASSWORD:-guacpass123}
+      POSTGRES_AUTO_CREATE_ACCOUNTS: "true"
     volumes:
-      - guac_postgres_data:/var/lib/postgresql/data
-      - ./guacamole/initdb.sql:/docker-entrypoint-initdb.d/initdb.sql:ro
+      - guacamole_data:/etc/guacamole
     networks:
       - orkalab-network
+    restart: unless-stopped
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  Networks
-# ─────────────────────────────────────────────────────────────────────────────
+  # Python Backend (FastAPI)
+  backend:
+    build: ./backend
+    container_name: orkalab-backend
+    depends_on:
+      - postgres
+      - redis
+      - guacamole
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-orkalab}:${DB_PASSWORD:-orkalab123}@postgres:5432/${DB_NAME:-orkalab}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
+      PROXMOX_HOST: ${PROXMOX_HOST}
+      PROXMOX_USER: ${PROXMOX_USER}
+      PROXMOX_PASSWORD: ${PROXMOX_PASSWORD}
+      PROXMOX_NODE: ${PROXMOX_NODE}
+      PROXMOX_BRIDGE: ${PROXMOX_BRIDGE:-vmbr1}
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-this}
+      GUACAMOLE_URL: http://guacamole:8080/guacamole
+      GUACAMOLE_ADMIN_USER: ${GUAC_ADMIN_USER:-guacadmin}
+      GUACAMOLE_ADMIN_PASSWORD: ${GUAC_ADMIN_PASSWORD:-guacadmin}
+      DHCP_START_IP: ${DHCP_START_IP:-192.168.2.100}
+      DHCP_SUBNET_MASK: ${DHCP_SUBNET_MASK:-255.255.255.0}
+      SERVER_HOST: ${SERVER_HOST:-localhost}
+      VM_LINUX_USERNAME: ${VM_LINUX_USERNAME:-root}
+      VM_LINUX_PASSWORD: ${VM_LINUX_PASSWORD}
+      VM_WINDOWS_USERNAME: ${VM_WINDOWS_USERNAME:-Administrator}
+      VM_WINDOWS_PASSWORD: ${VM_WINDOWS_PASSWORD}
+      HTTP_PROXY: ${HTTP_PROXY}
+      HTTPS_PROXY: ${HTTPS_PROXY}
+      NO_PROXY: ${NO_PROXY}
+      http_proxy: ${HTTP_PROXY}
+      https_proxy: ${HTTPS_PROXY}
+      no_proxy: ${NO_PROXY}
+    dns:
+      - ${PRIMARY_DNS:-10.67.18.79}
+      - ${SECONDARY_DNS:-10.9.18.79}
+    volumes:
+      - ./backend:/app
+      - /var/lib/dhcp:/var/lib/dhcp:ro
+      - /var/lib/misc:/var/lib/misc:ro
+      - /opt/orkalab:/opt/orkalab:ro
+    networks:
+      - orkalab-network
+    restart: unless-stopped
+    privileged: true
+    security_opt:
+      - seccomp:unconfined
+    cap_add:
+      - SYS_ADMIN
+      - NET_ADMIN
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    command: gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000
+
+  # React Frontend
+  frontend:
+    build: ./frontend
+    container_name: orkalab-frontend
+    privileged: true
+    environment:
+      REACT_APP_API_URL: /api
+      REACT_APP_GUACAMOLE_URL: /guacamole
+      HTTP_PROXY: ${HTTP_PROXY}
+      HTTPS_PROXY: ${HTTPS_PROXY}
+      NO_PROXY: ${NO_PROXY}
+    dns:
+      - ${PRIMARY_DNS:-10.67.18.79}
+      - ${SECONDARY_DNS:-10.9.18.79}
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - orkalab-network
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy
+  nginx:
+    build: ./nginx
+    container_name: orkalab-nginx
+    privileged: true
+    depends_on:
+      - backend
+      - frontend
+      - guacamole
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    networks:
+      - orkalab-network
+    extra_hosts:
+      - "host.docker.internal:${SERVER_HOST:-192.168.1.1}"
+    restart: unless-stopped
+
 networks:
   orkalab-network:
     driver: bridge
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  Volumes
-# ─────────────────────────────────────────────────────────────────────────────
 volumes:
   postgres_data:
   redis_data:
-  guac_postgres_data:
-  backend_uploads:
+  guac_data:
+  guacamole_data:
+  guacd_drive:
+  guacd_record:
+  guacd_home:
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
+  redis_password:
+    file: ./secrets/redis_password.txt
+  guac_db_password:
+    file: ./secrets/guac_db_password.txt
+  jwt_secret:
+    file: ./secrets/jwt_secret.txt
+  proxmox_password:
+    file: ./secrets/proxmox_password.txt
+  vm_linux_password:
+    file: ./secrets/vm_linux_password.txt
+  vm_windows_password:
+    file: ./secrets/vm_windows_password.txt
