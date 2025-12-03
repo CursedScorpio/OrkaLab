@@ -21,11 +21,19 @@ services:
       - PROXMOX_USER=${PROXMOX_USER}
       - PROXMOX_PASSWORD=${PROXMOX_PASSWORD}
       - PROXMOX_NODE=${PROXMOX_NODE}
+      - PROXMOX_BRIDGE=${PROXMOX_BRIDGE:-vmbr1}
       - PROXMOX_VERIFY_SSL=${PROXMOX_VERIFY_SSL:-false}
       - GUACAMOLE_URL=http://guacamole:8080/guacamole
-      - GUAC_ADMIN_USER=guacadmin
-      - GUAC_ADMIN_PASSWORD=${GUAC_PASSWORD}
-      - LICENSE_KEY=${LICENSE_KEY}
+      - GUACAMOLE_ADMIN_USER=${GUACAMOLE_ADMIN_USER:-guacadmin}
+      - GUACAMOLE_ADMIN_PASSWORD=${GUACAMOLE_ADMIN_PASSWORD:-guacadmin}
+      - VM_LINUX_USERNAME=${VM_LINUX_USERNAME:-root}
+      - VM_LINUX_PASSWORD=${VM_LINUX_PASSWORD}
+      - VM_WINDOWS_USERNAME=${VM_WINDOWS_USERNAME:-Administrator}
+      - VM_WINDOWS_PASSWORD=${VM_WINDOWS_PASSWORD}
+      - DHCP_START_IP=${DHCP_START_IP:-192.168.2.100}
+      - DHCP_SUBNET_MASK=${DHCP_SUBNET_MASK:-255.255.255.0}
+      - SERVER_HOST=${SERVER_HOST:-localhost}
+      - LICENSE_KEY=${LICENSE_KEY:-}
     volumes:
       - backend_uploads:/app/uploads
       - ./license.lic:/app/license.lic:ro
