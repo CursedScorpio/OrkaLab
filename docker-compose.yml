@@ -39,6 +39,7 @@ services:
     volumes:
       - backend_uploads:/app/uploads
       - ./license.lic:/opt/orkalab/license.lic:ro
+      - /var/lib/dhcp:/var/lib/dhcp:ro
     depends_on:
       - postgres
       - redis
@@ -132,12 +133,12 @@ services:
     security_opt:
       - apparmor:unconfined
     environment:
-      - GUACD_HOSTNAME=guacd
-      - POSTGRES_HOSTNAME=guac-postgres
-      - POSTGRES_PORT=5432
-      - POSTGRES_DATABASE=guacamole_db
-      - POSTGRES_USER=guacamole_user
-      - POSTGRES_PASSWORD=${GUAC_DB_PASSWORD}
+      GUACD_HOSTNAME: guacd
+      POSTGRESQL_HOSTNAME: guac-postgres
+      POSTGRESQL_PORT: 5432
+      POSTGRESQL_DATABASE: guacamole_db
+      POSTGRESQL_USER: guacamole_user
+      POSTGRESQL_PASSWORD: ${GUAC_DB_PASSWORD}
     depends_on:
       - guacd
       - guac-postgres
