@@ -1,4 +1,10 @@
-version: '3.8'
+# Production Docker Compose for Commercial Deployment
+# Uses pre-built images from Docker Hub
+#
+# Note: The privileged mode and elevated capabilities on certain containers
+# are intentionally configured to match the development docker-compose.yml
+# for feature parity. In a future security hardening effort, consider
+# removing unnecessary privileges.
 
 services:
   # PostgreSQL Database
@@ -30,7 +36,7 @@ services:
     networks:
       - orkalab-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis123}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -99,14 +105,17 @@ services:
       - orkalab-network
     restart: unless-stopped
 
-  # Python Backend (FastAPI)
+  # Python Backend (FastAPI) - Pre-built image
   backend:
-    build: ./backend
+    image: ${DOCKER_HUB_USER:-cursedscropio}/orkalab-backend:${VERSION:-latest}
     container_name: orkalab-backend
     depends_on:
-      - postgres
-      - redis
-      - guacamole
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      guacamole:
+        condition: service_started
     environment:
       DATABASE_URL: postgresql://${DB_USER:-orkalab}:${DB_PASSWORD:-orkalab123}@postgres:5432/${DB_NAME:-orkalab}
       REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
@@ -115,6 +124,7 @@ services:
       PROXMOX_PASSWORD: ${PROXMOX_PASSWORD}
       PROXMOX_NODE: ${PROXMOX_NODE}
       PROXMOX_BRIDGE: ${PROXMOX_BRIDGE:-vmbr1}
+      PROXMOX_VERIFY_SSL: ${PROXMOX_VERIFY_SSL:-false}
       JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-this}
       GUACAMOLE_URL: http://guacamole:8080/guacamole
       GUACAMOLE_ADMIN_USER: ${GUAC_ADMIN_USER:-guacadmin}
@@ -133,10 +143,9 @@ services:
       https_proxy: ${HTTPS_PROXY}
       no_proxy: ${NO_PROXY}
     dns:
-      - ${PRIMARY_DNS:-10.67.18.79}
-      - ${SECONDARY_DNS:-10.9.18.79}
+      - ${PRIMARY_DNS:-8.8.8.8}
+      - ${SECONDARY_DNS:-8.8.4.4}
     volumes:
-      - ./backend:/app
       - /var/lib/dhcp:/var/lib/dhcp:ro
       - /var/lib/misc:/var/lib/misc:ro
       - /opt/orkalab:/opt/orkalab:ro
@@ -155,32 +164,22 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    command: gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000
 
-  # React Frontend
+  # React Frontend - Pre-built image
   frontend:
-    build: ./frontend
+    image: ${DOCKER_HUB_USER:-cursedscropio}/orkalab-frontend:${VERSION:-latest}
     container_name: orkalab-frontend
     privileged: true
     environment:
       REACT_APP_API_URL: /api
       REACT_APP_GUACAMOLE_URL: /guacamole
-      HTTP_PROXY: ${HTTP_PROXY}
-      HTTPS_PROXY: ${HTTPS_PROXY}
-      NO_PROXY: ${NO_PROXY}
-    dns:
-      - ${PRIMARY_DNS:-10.67.18.79}
-      - ${SECONDARY_DNS:-10.9.18.79}
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
     networks:
       - orkalab-network
     restart: unless-stopped
 
-  # Nginx Reverse Proxy
+  # Nginx Reverse Proxy - Pre-built image
   nginx:
-    build: ./nginx
+    image: ${DOCKER_HUB_USER:-cursedscropio}/orkalab-nginx:${VERSION:-latest}
     container_name: orkalab-nginx
     privileged: true
     depends_on:
@@ -191,7 +190,6 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./nginx/ssl:/etc/nginx/ssl
     networks:
       - orkalab-network
@@ -211,18 +209,3 @@ volumes:
   guacd_drive:
   guacd_record:
   guacd_home:
-secrets:
-  db_password:
-    file: ./secrets/db_password.txt
-  redis_password:
-    file: ./secrets/redis_password.txt
-  guac_db_password:
-    file: ./secrets/guac_db_password.txt
-  jwt_secret:
-    file: ./secrets/jwt_secret.txt
-  proxmox_password:
-    file: ./secrets/proxmox_password.txt
-  vm_linux_password:
-    file: ./secrets/vm_linux_password.txt
-  vm_windows_password:
-    file: ./secrets/vm_windows_password.txt
