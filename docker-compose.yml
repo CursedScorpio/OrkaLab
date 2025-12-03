@@ -1,0 +1,156 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Orkalab Production Docker Compose
+#  DO NOT MODIFY - Generated automatically
+# ═══════════════════════════════════════════════════════════════════════════════
+
+version: '3.8'
+
+services:
+  # ─────────────────────────────────────────────────────────────────────────────
+  #  Backend API (FastAPI)
+  # ─────────────────────────────────────────────────────────────────────────────
+  backend:
+    image: cursedscropio/orkalab-backend:latest
+    container_name: orkalab-backend
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://orkalab:${DB_PASSWORD}@postgres:5432/orkalab
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET}
+      - PROXMOX_HOST=${PROXMOX_HOST}
+      - PROXMOX_USER=${PROXMOX_USER}
+      - PROXMOX_PASSWORD=${PROXMOX_PASSWORD}
+      - PROXMOX_NODE=${PROXMOX_NODE}
+      - PROXMOX_VERIFY_SSL=${PROXMOX_VERIFY_SSL:-false}
+      - GUACAMOLE_URL=http://guacamole:8080/guacamole
+      - GUAC_ADMIN_USER=guacadmin
+      - GUAC_ADMIN_PASSWORD=${GUAC_PASSWORD}
+      - LICENSE_KEY=${LICENSE_KEY}
+    volumes:
+      - backend_uploads:/app/uploads
+      - ./license.lic:/app/license.lic:ro
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - orkalab-network
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  #  Frontend (React + Nginx)
+  # ─────────────────────────────────────────────────────────────────────────────
+  frontend:
+    image: cursedscropio/orkalab-frontend:latest
+    container_name: orkalab-frontend
+    restart: unless-stopped
+    networks:
+      - orkalab-network
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  #  Nginx Reverse Proxy
+  # ─────────────────────────────────────────────────────────────────────────────
+  nginx:
+    image: cursedscropio/orkalab-nginx:latest
+    container_name: orkalab-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - backend
+      - frontend
+      - guacamole
+    networks:
+      - orkalab-network
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  #  PostgreSQL Database
+  # ─────────────────────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: orkalab-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=orkalab
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=orkalab
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - orkalab-network
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  #  Redis Cache
+  # ─────────────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: orkalab-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - orkalab-network
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  #  Guacamole Daemon
+  # ─────────────────────────────────────────────────────────────────────────────
+  guacd:
+    image: guacamole/guacd:latest
+    container_name: orkalab-guacd
+    restart: unless-stopped
+    networks:
+      - orkalab-network
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  #  Guacamole Web Interface
+  # ─────────────────────────────────────────────────────────────────────────────
+  guacamole:
+    image: guacamole/guacamole:latest
+    container_name: orkalab-guacamole
+    restart: unless-stopped
+    environment:
+      - GUACD_HOSTNAME=guacd
+      - POSTGRES_HOSTNAME=guac-postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DATABASE=guacamole_db
+      - POSTGRES_USER=guacamole_user
+      - POSTGRES_PASSWORD=${GUAC_DB_PASSWORD}
+    depends_on:
+      - guacd
+      - guac-postgres
+    networks:
+      - orkalab-network
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  #  Guacamole PostgreSQL Database
+  # ─────────────────────────────────────────────────────────────────────────────
+  guac-postgres:
+    image: postgres:15-alpine
+    container_name: orkalab-guac-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=guacamole_user
+      - POSTGRES_PASSWORD=${GUAC_DB_PASSWORD}
+      - POSTGRES_DB=guacamole_db
+    volumes:
+      - guac_postgres_data:/var/lib/postgresql/data
+      - ./guacamole/initdb.sql:/docker-entrypoint-initdb.d/initdb.sql:ro
+    networks:
+      - orkalab-network
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Networks
+# ─────────────────────────────────────────────────────────────────────────────
+networks:
+  orkalab-network:
+    driver: bridge
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Volumes
+# ─────────────────────────────────────────────────────────────────────────────
+volumes:
+  postgres_data:
+  redis_data:
+  guac_postgres_data:
+  backend_uploads:

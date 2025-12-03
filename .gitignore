@@ -1,0 +1,29 @@
+# Sensitive files - NEVER commit these
+*.lic
+license*
+*license*
+*.key
+*.pem
+*.env
+.env*
+
+# Installer scripts - distributed separately
+install*.sh
+*installer*
+
+# Scripts that shouldn't be public
+validate.sh
+generate-license.sh
+orkalab.sh
+
+# Development files
+__pycache__/
+*.pyc
+*.pyo
+node_modules/
+*.log
+
+# Documentation that's private
+*GUIDE*.md
+ARCHITECTURE.md
+*PROMPT*.md
