@@ -14,7 +14,7 @@ services:
     container_name: orkalab-backend
     restart: unless-stopped
     security_opt:
-      - seccomp:unconfined
+      - apparmor:unconfined
     environment:
       - DATABASE_URL=postgresql://orkalab:${DB_PASSWORD}@postgres:5432/orkalab
       - REDIS_URL=redis://redis:6379
