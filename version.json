@@ -1,12 +1,12 @@
 {
-    "version": "1.0.4",
-    "release_date": "2025-12-04T15:28:28Z",
+    "version": "1.0.5",
+    "release_date": "2025-12-06T07:42:27Z",
     "images": {
-        "backend": "cursedscropio/orkalab-backend:1.0.4",
-        "frontend": "cursedscropio/orkalab-frontend:1.0.4",
-        "nginx": "cursedscropio/orkalab-nginx:1.0.4"
+        "backend": "cursedscropio/orkalab-backend:1.0.5",
+        "frontend": "cursedscropio/orkalab-frontend:1.0.5",
+        "nginx": "cursedscropio/orkalab-nginx:1.0.5"
     },
-    "changelog": "https://github.com/CursedScorpio/OrkaLab/releases/tag/v1.0.4",
+    "changelog": "https://github.com/CursedScorpio/OrkaLab/releases/tag/v1.0.5",
     "min_docker_version": "20.10.0",
     "min_compose_version": "2.0.0"
 }
