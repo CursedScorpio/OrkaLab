@@ -118,6 +118,8 @@ services:
       VM_LINUX_PASSWORD: ${VM_LINUX_PASSWORD}
       VM_WINDOWS_USERNAME: ${VM_WINDOWS_USERNAME:-Administrator}
       VM_WINDOWS_PASSWORD: ${VM_WINDOWS_PASSWORD}
+      PRIMARY_DNS: ${PRIMARY_DNS:-8.8.8.8}
+      SECONDARY_DNS: ${SECONDARY_DNS:-8.8.4.4}
       HTTP_PROXY: ${HTTP_PROXY}
       HTTPS_PROXY: ${HTTPS_PROXY}
       NO_PROXY: ${NO_PROXY}
@@ -126,7 +128,7 @@ services:
       no_proxy: ${NO_PROXY}
     dns:
       - ${PRIMARY_DNS:-8.8.8.8}
-      - ${SECONDARY_DNS:-8.8.4.4}
+      - ${SECONDARY_DNS:-8.8.8.8}
     volumes:
       - /var/lib/dhcp:/var/lib/dhcp:ro
       - /var/lib/misc:/var/lib/misc:ro
