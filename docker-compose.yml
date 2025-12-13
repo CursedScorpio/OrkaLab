@@ -65,9 +65,9 @@ services:
       - NO_PROXY=127.0.0.1,localhost,192.168.0.0/16,10.0.0.0/8
       - no_proxy=127.0.0.1,localhost,192.168.0.0/16,10.0.0.0/8
 
-  # Guacamole Client
+  # Guacamole Client (Custom build with multi-session support)
   guacamole:
-    image: guacamole/guacamole:1.5.3
+    image: ${DOCKER_HUB_USER:-cursedscropio}/orkalab-guacamole:${VERSION:-1.5.3-multisession}
     container_name: guacamole
     privileged: true
     depends_on:
@@ -126,6 +126,14 @@ services:
       http_proxy: ${HTTP_PROXY}
       https_proxy: ${HTTPS_PROXY}
       no_proxy: ${NO_PROXY}
+      # AI Agent Configuration
+      AI_ENABLED: ${AI_ENABLED:-false}
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      AI_MODEL: ${AI_MODEL:-gpt-4}
+      AI_MAX_TOKENS: ${AI_MAX_TOKENS:-2000}
+      AI_TEMPERATURE: ${AI_TEMPERATURE:-0.7}
     dns:
       - ${PRIMARY_DNS:-8.8.8.8}
       - ${SECONDARY_DNS:-8.8.8.8}

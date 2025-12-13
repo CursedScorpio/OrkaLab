@@ -8,8 +8,8 @@ license*
 .env*
 
 # Installer scripts - distributed separately
-install*.sh
-*installer*
+install.sh
+
 
 # Scripts that shouldn't be public
 validate.sh
