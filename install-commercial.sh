@@ -1398,96 +1398,15 @@ create_env_file() {
     AI_ENABLED="false"
     AI_PROVIDER="openai"
     OPENAI_API_KEY=""
-    GEMINI_API_KEY=""
     AI_MODEL="gpt-4"
     AI_MAX_TOKENS="2000"
     AI_TEMPERATURE="0.7"
     
     if [[ "$ENABLE_AI" =~ ^[Yy]$ ]]; then
         echo ""
-        echo "Select AI provider:"
-        echo "  1) OpenAI (GPT-4, GPT-3.5)"
-        echo "  2) Google Gemini (Gemini Pro, Flash)"
-        read -p "Provider choice [1]: " PROVIDER_CHOICE
-        PROVIDER_CHOICE=${PROVIDER_CHOICE:-1}
+        echo "Using OpenAI provider (GPT-4, GPT-3.5)"
         
-        if [ "$PROVIDER_CHOICE" = "2" ]; then
-            # Gemini configuration
-            AI_PROVIDER="gemini"
-            echo ""
-            echo "Enter your Google Gemini API key (from https://makersuite.google.com/app/apikey):"
-            read -sp "Gemini API Key: " GEMINI_API_KEY_INPUT
-            echo ""
-            
-            if [ -n "$GEMINI_API_KEY_INPUT" ]; then
-                print_status "Testing Gemini API key..."
-                
-                # Test the API key
-                TEST_RESPONSE=$(curl -s -w "\n%{http_code}" \
-                    "https://generativelanguage.googleapis.com/v1/models?key=$GEMINI_API_KEY_INPUT" 2>/dev/null)
-                
-                HTTP_CODE=$(echo "$TEST_RESPONSE" | tail -n1)
-                
-                if [ "$HTTP_CODE" = "200" ]; then
-                    AI_ENABLED="true"
-                    GEMINI_API_KEY="$GEMINI_API_KEY_INPUT"
-                    print_success "Gemini API key validated successfully"
-                    
-                    # Ask for model preference
-                    echo ""
-                    echo "Select Gemini model:"
-                    echo "  1) gemini-pro (recommended, balanced)"
-                    echo "  2) gemini-1.5-pro (most capable)"
-                    echo "  3) gemini-1.5-flash (fastest, economical)"
-                    echo "  4) gemini-2.0-flash-exp (experimental, latest)"
-                    echo "  5) Custom model name"
-                    read -p "Model choice [1]: " MODEL_CHOICE
-                    MODEL_CHOICE=${MODEL_CHOICE:-1}
-                    
-                    case $MODEL_CHOICE in
-                        2) AI_MODEL="gemini-1.5-pro" ;;
-                        3) AI_MODEL="gemini-1.5-flash" ;;
-                        4) AI_MODEL="gemini-2.0-flash-exp" ;;
-                        5) 
-                            read -p "Enter custom Gemini model name: " CUSTOM_MODEL
-                            AI_MODEL="${CUSTOM_MODEL:-gemini-pro}"
-                            ;;
-                        *) AI_MODEL="gemini-pro" ;;
-                    esac
-                    
-                    print_success "AI model set to: $AI_MODEL"
-                    
-                    # Test the model with a simple request
-                    print_status "Testing model $AI_MODEL..."
-                    TEST_MODEL_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-                        -H "Content-Type: application/json" \
-                        -d "{\"contents\":[{\"parts\":[{\"text\":\"Hello\"}]}]}" \
-                        "https://generativelanguage.googleapis.com/v1/models/${AI_MODEL}:generateContent?key=$GEMINI_API_KEY_INPUT" 2>/dev/null)
-                    
-                    MODEL_HTTP_CODE=$(echo "$TEST_MODEL_RESPONSE" | tail -n1)
-                    
-                    if [ "$MODEL_HTTP_CODE" = "200" ]; then
-                        print_success "Model $AI_MODEL is working correctly"
-                    else
-                        print_warning "Warning: Model test returned HTTP $MODEL_HTTP_CODE"
-                        print_warning "Model may not exist or may not be available for your API key"
-                        read -p "Continue anyway? [y/N]: " CONTINUE_CHOICE
-                        if [[ ! "$CONTINUE_CHOICE" =~ ^[Yy]$ ]]; then
-                            AI_ENABLED="false"
-                            GEMINI_API_KEY=""
-                            print_warning "AI disabled"
-                        fi
-                    fi
-                else
-                    print_error "Gemini API key validation failed (HTTP $HTTP_CODE)"
-                    print_warning "AI will be disabled. You can enable it later in admin config."
-                    AI_ENABLED="false"
-                    GEMINI_API_KEY=""
-                fi
-            else
-                print_warning "No API key provided. AI will be disabled."
-            fi
-        else
+        if true; then
             # OpenAI configuration
             AI_PROVIDER="openai"
             echo ""
